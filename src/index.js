@@ -143,11 +143,13 @@
      *                      called when there's a user.
      * @param endpoint {String} Optional parameter. Address of the endpoint to
      *                          use for authentication
+     * @param tokenKey {String} Key of the token to use
      */
-    function getUser(methods, cb, endpoint) {
+    function getUser(methods, cb, endpoint, tokenKey) {
         var failed = 0;
         var done = false;
-        var _endpoint = endpoint || '/postback/auth';
+        var _endpoint = endpoint || '/postback/me';
+        var _tokenKey = tokenKey || '_b';
 
         /**
          * Fetches all tokens at once
@@ -190,16 +192,15 @@
          */
         function tryToken(token) {
             var xhr;
+            var url = _endpoint + '?' + encodeURIComponent(_tokenKey)
+                + '=' + encodeURIComponent(token);
 
             if (done) {
                 return;
             }
 
             xhr = new XMLHttpRequest();
-            xhr.open('POST', _endpoint, true);
-            xhr.setRequestHeader(
-                'Content-type', 'application/x-www-form-urlencoded'
-            );
+            xhr.open('GET', url, true);
             xhr.setRequestHeader('Accept', 'application/json');
 
             xhr.onreadystatechange = function () {
@@ -221,7 +222,7 @@
                 }
             };
 
-            xhr.send('token=' + encodeURIComponent(token));
+            xhr.send();
         }
 
         getTokens();
