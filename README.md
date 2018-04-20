@@ -35,16 +35,20 @@ Two authentication mecanisms are provided out of the box, namely:
 You can provide as many authentication methods as you want.
 
 ```javascript
-bernard.getUser([
-    bernard.urlTokenAuth(),
-    bernard.messengerExtensionsAuth(FB_APP_ID),
-], (err, user) => {
-    if (err) {
-        console.log('could not authenticate');
-    }
+bernard.getUser(
+    [
+        bernard.urlTokenAuth(),
+        bernard.messengerExtensionsAuth(FB_APP_ID)
+    ],
+    (err, user, token) => {
+        if (err) {
+            return console.log('Could not authentify!');
+        }
 
-    console.log('got user', user);
-});
+        bernard.sendPostback(token, {foo: 'bar'});
+        bernard.pageView(token);
+    }
+);
 ```
 
 Of course, don't forget to replace `FB_APP_ID` with your own Facebook

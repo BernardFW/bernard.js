@@ -103,7 +103,7 @@
             meWaitList.push(window.extAsyncInit);
         }
 
-        meWaitList.append(cb);
+        meWaitList.push(cb);
         meIsInstalled = true;
 
         window.extAsyncInit = function () {
@@ -215,7 +215,9 @@
                 }
 
                 try {
-                    callBack(cb, undefined, JSON.parse(xhr.responseText));
+                    callBack(
+                        cb, undefined, JSON.parse(xhr.responseText), token
+                    );
                     done = true;
                 } catch (e) {
                     fail();
@@ -228,11 +230,111 @@
         getTokens();
     }
 
+    /**
+     * Performs a HTTP POST. For internal use only.
+     */
+    function httpPost(body, options, success, failure) {
+        var xhr;
+        var tokenKey = options.tokenKey || '_b';
+        var url = options.endpoint + '?' + encodeURIComponent(tokenKey)
+            + '=' + encodeURIComponent(options.token);
+
+        xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+
+        xhr.onreadystatechange = function () {
+            var xhrDone = xhr.readyState === XMLHttpRequest.DONE;
+
+            if (!xhrDone) {
+                return;
+            }
+
+            if (xhr.status !== 200) {
+                callBack(failure, new Error('HTTP error'));
+            }
+
+            try {
+                callBack(success, JSON.parse(xhr.responseText));
+            } catch (e) {
+                callBack(failure, new Error('Decoding error'));
+            }
+        };
+
+        xhr.send(JSON.stringify(body));
+    }
+
+    /**
+     * Sends a postback message to the user
+     *
+     * @param token {String} Token returned by `getUser()`
+     * @param payload {Object} Payload to be sent
+     * @param cb {Function} Callable that will receive the result. First
+     *                      argument will be the error if any, undefined
+     *                      otherwise.
+     * @param endpoint {String} Optional endpoint URL
+     * @param tokenKey {String} Optional custom name for custom token key
+     */
+    function sendPostback(token, payload, cb, endpoint, tokenKey) {
+        var _endpoint = endpoint || '/postback/send';
+
+        httpPost(
+            payload,
+            {
+                endpoint: _endpoint,
+                tokenKey: tokenKey,
+                token: token
+            },
+            function () {
+                cb && callBack(cb);
+            },
+            function (err) {
+                cb && callBack(cb, err);
+            }
+        );
+    }
+
+    /**
+     * Track a page view in the analytics provider(s)
+     *
+     * @param token {String} Token returned by `getUser()`
+     * @param path {String} URL path. By default, uses the current path.
+     * @param title {String} Page title. By default, uses the current title.
+     * @param cb {String} Optional callback called when the tracking is done.
+     * @param endpoint {String} Optional custom endpoint URL
+     * @param tokenKey {String} Optional custom token key
+     */
+    function pageView(token, path, title, cb, endpoint, tokenKey) {
+        var _endpoint = endpoint || '/postback/analytics';
+
+        httpPost(
+            {
+                event: 'page_view',
+                path: path || document.location.pathname,
+                title: title || document.title
+            },
+            {
+                endpoint: _endpoint,
+                tokenKey: tokenKey,
+                token: token
+            },
+            function () {
+                cb && callBack(cb);
+            },
+            function (err) {
+                cb && callBack(cb, err);
+            }
+        )
+    }
+
     return {
         getQsParam: getQsParam,
         urlTokenAuth: urlTokenAuth,
         messengerExtensionsReady: messengerExtensionsReady,
         messengerExtensionsAuth: messengerExtensionsAuth,
-        getUser: getUser
+        getUser: getUser,
+        sendPostback: sendPostback,
+        pageView: pageView
     };
 }));
