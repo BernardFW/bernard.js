@@ -42,7 +42,7 @@ bernard.getUser(
     ],
     (err, user, token) => {
         if (err) {
-            return console.log('Could not authentify!');
+            return console.log('Could not authenticate!');
         }
 
         bernard.sendPostback(token, {foo: 'bar'});
