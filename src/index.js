@@ -59,12 +59,32 @@
                 var token = getQsParam(name);
 
                 if (!token) {
-                    cb(new Error('No "' + name + '" QS parameter found'));
+                    return cb(
+                        new Error('No "' + name + '" QS parameter found')
+                    );
                 }
 
                 cb(undefined, token);
             }, 0);
         };
+    }
+
+    /**
+     * Authenticates using the hash fragment. It is more secure than the
+     * url token because it will automatically be removed from the URL once
+     * consumed.
+     */
+    function hashTokenAuth() {
+        return function (cb) {
+            var token = window.location.hash;
+
+            if (!token) {
+                return cb(new Error('No hash token found'));
+            }
+
+            window.location.hash = '';
+            callBack(cb, undefined, token.substr(1));
+        }
     }
 
     /**
@@ -143,13 +163,11 @@
      *                      called when there's a user.
      * @param endpoint {String} Optional parameter. Address of the endpoint to
      *                          use for authentication
-     * @param tokenKey {String} Key of the token to use
      */
-    function getUser(methods, cb, endpoint, tokenKey) {
+    function getUser(methods, cb, endpoint) {
         var failed = 0;
         var done = false;
         var _endpoint = endpoint || '/postback/me';
-        var _tokenKey = tokenKey || '_b';
 
         /**
          * Fetches all tokens at once
@@ -192,16 +210,20 @@
          */
         function tryToken(token) {
             var xhr;
-            var url = _endpoint + '?' + encodeURIComponent(_tokenKey)
-                + '=' + encodeURIComponent(token);
+            var url = _endpoint;
 
             if (done) {
                 return;
             }
 
+            if (!token) {
+                return fail();
+            }
+
             xhr = new XMLHttpRequest();
             xhr.open('GET', url, true);
             xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('X-Bernard-Auth', token);
 
             xhr.onreadystatechange = function () {
                 var xhrDone = xhr.readyState === XMLHttpRequest.DONE;
@@ -220,7 +242,7 @@
                     );
                     done = true;
                 } catch (e) {
-                    fail();
+                    return fail();
                 }
             };
 
@@ -235,14 +257,13 @@
      */
     function httpPost(body, options, success, failure) {
         var xhr;
-        var tokenKey = options.tokenKey || '_b';
-        var url = options.endpoint + '?' + encodeURIComponent(tokenKey)
-            + '=' + encodeURIComponent(options.token);
+        var url = options.endpoint;
 
         xhr = new XMLHttpRequest();
         xhr.open('POST', url, true);
         xhr.setRequestHeader('Accept', 'application/json');
         xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('X-Bernard-Auth', options.token);
 
         xhr.onreadystatechange = function () {
             var xhrDone = xhr.readyState === XMLHttpRequest.DONE;
@@ -274,16 +295,14 @@
      *                      argument will be the error if any, undefined
      *                      otherwise.
      * @param endpoint {String} Optional endpoint URL
-     * @param tokenKey {String} Optional custom name for custom token key
      */
-    function sendPostback(token, payload, cb, endpoint, tokenKey) {
+    function sendPostback(token, payload, cb, endpoint) {
         var _endpoint = endpoint || '/postback/send';
 
         httpPost(
             payload,
             {
                 endpoint: _endpoint,
-                tokenKey: tokenKey,
                 token: token
             },
             function () {
@@ -303,9 +322,8 @@
      * @param title {String} Page title. By default, uses the current title.
      * @param cb {String} Optional callback called when the tracking is done.
      * @param endpoint {String} Optional custom endpoint URL
-     * @param tokenKey {String} Optional custom token key
      */
-    function pageView(token, path, title, cb, endpoint, tokenKey) {
+    function pageView(token, path, title, cb, endpoint) {
         var _endpoint = endpoint || '/postback/analytics';
 
         httpPost(
@@ -316,7 +334,6 @@
             },
             {
                 endpoint: _endpoint,
-                tokenKey: tokenKey,
                 token: token
             },
             function () {
@@ -331,6 +348,7 @@
     return {
         getQsParam: getQsParam,
         urlTokenAuth: urlTokenAuth,
+        hashTokenAuth: hashTokenAuth,
         messengerExtensionsReady: messengerExtensionsReady,
         messengerExtensionsAuth: messengerExtensionsAuth,
         getUser: getUser,

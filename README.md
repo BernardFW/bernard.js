@@ -27,9 +27,11 @@ Add `index.js` to your project and load it as a script.
 
 ## Usage
 
-Two authentication mecanisms are provided out of the box, namely:
+Three authentication mecanisms are provided out of the box, namely:
 
 - `urlTokenAuth` looks at a `_b` parameter in the query string
+- `hashTokenAuth` uses the hash to find the token and removes it once
+  consumed, which makes it more secure than `urlTokenAuth()`.
 - `messengerExtensionsAuth` uses messenger extensions
 
 You can provide as many authentication methods as you want.
@@ -37,6 +39,7 @@ You can provide as many authentication methods as you want.
 ```javascript
 bernard.getUser(
     [
+        bernard.hashTokenAuth(),
         bernard.urlTokenAuth(),
         bernard.messengerExtensionsAuth(FB_APP_ID)
     ],
@@ -63,6 +66,7 @@ Let's break it down.
 
 ```javascript
     [
+        bernard.hashTokenAuth(),
         bernard.urlTokenAuth(),
         bernard.messengerExtensionsAuth(FB_APP_ID)
     ],
@@ -73,6 +77,7 @@ Let's break it down.
 ```javascript
 bernard.getUser(
     [
+        bernard.hashTokenAuth(),
         bernard.urlTokenAuth(),
         bernard.messengerExtensionsAuth(FB_APP_ID)
     ],
@@ -197,15 +202,48 @@ class TestState(MyBaseState):
         )
 ```
 
-#### URL token-based
+#### Hash-based
 
-In the case where you're using the URL token, all you need to do is to
-sign the URL with the `self.request.sign_url()` function. By example:
+In the case where you're using the hash token, all you need to do is to
+sign the URL with the `self.request.sign_url()` function. It is pretty
+similar to `urlTokenAuth()` but is a little bit more secure since the
+token is removed from the URL once loaded.
+
+By example:
 
 ```python
 class TestState(MyBaseState):
     async def handle(self) -> None:
         url = await self.request.sign_url('https://front.foobar.com/')
+
+        self.send(
+            fbl.ButtonTemplate(
+                text='Foo',
+                buttons=[
+                    fbh.UrlButton(
+                        title='Bar',
+                        url=url,
+                    ),
+                ]
+            )
+        )
+```
+
+#### Query token-based
+
+In the case where you're using the URL token, all you need to do is to
+sign the URL with the `self.request.sign_url()` function. It is a bit
+less secure than `hashTokenAuth()` so please avoid using it if you don't
+need to.
+
+By example:
+
+```python
+class TestState(MyBaseState):
+    async def handle(self) -> None:
+        url = await self.request.sign_url(
+            'https://front.foobar.com/', method=self.request.QUERY
+        )
 
         self.send(
             fbl.ButtonTemplate(
@@ -232,6 +270,19 @@ class TestState(MyBaseState):
      * default value is _b.
      */
     function urlTokenAuth(tokenName) {
+        // ...
+    }
+```
+
+#### `hashTokenAuth()`
+
+```javascript
+    /**
+     * Authenticates using the hash fragment. It is more secure than the
+     * url token because it will automatically be removed from the URL once
+     * consumed.
+     */
+    function hashTokenAuth() {
         // ...
     }
 ```
