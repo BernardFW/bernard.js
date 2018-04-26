@@ -1,0 +1,9 @@
+{
+    "name": "bernard-js",
+    "version": "0.2.0",
+    "description": "Helper functions to communicate with BERNARD",
+    "main": "src/index.js",
+    "repository": "https://github.com/BernardFW/bernard.js",
+    "author": "Rémy Sanchez <remy.sanchez@hyperthese.net>",
+    "license": "WTFPL"
+}
